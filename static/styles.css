@@ -1,0 +1,20 @@
+* {
+	font-family: 'Lato', Helvetica, sans-serif;
+}
+
+.top-menu {
+	padding: 30px;
+	font-size: 20px;
+}
+
+.glyphicon {
+	margin-right: 9px;
+}
+
+.categories {
+	padding-left: 30px;
+}
+
+.category {
+	border: 1px solid gray;
+}
