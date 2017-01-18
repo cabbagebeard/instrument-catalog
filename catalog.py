@@ -242,10 +242,8 @@ def gdisconnect():
 @app.route('/category/')
 def showCategories():
 	categories = session.query(Category).order_by(asc(Category.name))
-	if 'username' not in login_session:
-		return render_template('publiccategories.html', categories=categories)
-	else:
-		return render_template('categories.html', categories=categories)
+	return render_template('categories.html', categories=categories)
+
 
 @app.route('/category/<int:category_id>/')
 @app.route('/category/<int:category_id>/items/')
@@ -254,10 +252,46 @@ def showItem(category_id):
     creator = getUserInfo(category.user_id)
     item = session.query(Item).filter_by(
         category_id=category_id).all()
-    if 'username' not in login_session or creator.id != login_session['user_id']:
-        return render_template('publicitems.html', item=item, category=category, creator=creator)
+    return render_template('items.html', item=item, category=category, creator=creator)
+
+
+@app.route('/category/<int:category_id>/items/new', methods=['GET', 'POST'])
+def newItem(category_id):
+    if 'username' not in login_session:
+        return redirect('/login')
+    category = session.query(Category).filter_by(id=category_id).one()
+    if request.method == 'POST':
+        newItem = Item(name=request.form['name'], description=request.form['description'], user_id=login_session['user_id'], category_id=category_id)
+        session.add(newItem)
+        session.commit()
+        flash('New item successfully added.')
+        return redirect(url_for('showCategories'))
     else:
-        return render_template('items.html', item=item, category=category, creator=creator)
+        return render_template('newItem.html')
+
+
+@app.route('/category/<int:category_id>/items/<int:item_id>/edit', methods=['GET', 'POST'])
+def editItem(category_id, item_id):
+    if 'username' not in login_session:
+        return redirect('/login')
+    editedItem = session.query(Item).filter_by(id=item_id).one()
+    category = session.query(Category).filter_by(id=category_id).one()
+    if login_session['user_id'] != editedItem.user_id:
+        flash('You are not authorized to edit this item.')
+    if request.method == 'POST':
+        if request.form['name']:
+            editedItem.name = request.form['name']
+        if request.form['description']:
+            editedItem.description = request.form['description']
+        session.add(editedItem)
+        session.commit()
+        flash('Item successfully edited.')
+        return redirect(url_for('showCategories'))
+    else:
+        return render_template('editItem.html', category_id=category_id, item_id=item_id, item=editedItem)
+
+
+
 
 
 
