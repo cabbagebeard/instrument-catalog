@@ -217,6 +217,7 @@ def getUserID(email):
     except:
         return None
 
+#Google+ disconnect
 @app.route('/gdisconnect')
 def gdisconnect():
     # Only disconnect a connected user.
@@ -244,15 +245,18 @@ def showCategories():
 	categories = session.query(Category).order_by(asc(Category.name))
 	return render_template('categories.html', categories=categories)
 
-
+#Show all items within a chosen category
 @app.route('/category/<int:category_id>/')
 @app.route('/category/<int:category_id>/items/')
 def showItem(category_id):
     category = session.query(Category).filter_by(id=category_id).one()
-    creator = getUserInfo(category.user_id)
-    item = session.query(Item).filter_by(
-        category_id=category_id).all()
-    return render_template('items.html', item=item, category=category, creator=creator)
+    creator = getUserInfo(category.user_id)  
+    item = session.query(Item).filter_by(category_id=category_id).all()
+    if 'username' in login_session:
+        user = login_session['user_id']
+        return render_template('items.html', item=item, category=category, creator=creator, user=user)
+    else:
+        return render_template('publicitems.html', item=item, category=category)
 
 
 @app.route('/category/<int:category_id>/items/new', methods=['GET', 'POST'])
@@ -265,7 +269,7 @@ def newItem(category_id):
         session.add(newItem)
         session.commit()
         flash('New item successfully added.')
-        return redirect(url_for('showCategories'))
+        return redirect(url_for('showItem', category_id=category_id))
     else:
         return render_template('newItem.html')
 
@@ -278,6 +282,7 @@ def editItem(category_id, item_id):
     category = session.query(Category).filter_by(id=category_id).one()
     if login_session['user_id'] != editedItem.user_id:
         flash('You are not authorized to edit this item.')
+        return redirect(url_for('showCategories'))
     if request.method == 'POST':
         if request.form['name']:
             editedItem.name = request.form['name']
@@ -286,13 +291,40 @@ def editItem(category_id, item_id):
         session.add(editedItem)
         session.commit()
         flash('Item successfully edited.')
-        return redirect(url_for('showCategories'))
+        return redirect(url_for('showItem', category_id=category_id))
     else:
         return render_template('editItem.html', category_id=category_id, item_id=item_id, item=editedItem)
 
 
+@app.route('/category/<int:category_id>/items/<int:item_id>/delete', methods=['GET', 'POST'])
+def deleteItem(category_id, item_id):
+    if 'username' not in login_session:
+        return redirect('/login')
+    delItem = session.query(Item).filter_by(id=item_id).one()
+    category = session.query(Category).filter_by(id=category_id).one()
+    if login_session['user_id'] != delItem.user_id:
+        flash('You are not authorized to delete this item.')
+        return redirect(url_for('showCategories'))
+    if request.method == 'POST':
+        session.delete(delItem)
+        session.commit()
+        flash('Item deleted')
+        return redirect(url_for('showItem', category_id=category_id))
+    else:
+        return render_template('deleteItem.html', item=delItem)
+
+#JSON APIs for viewing information
+@app.route('/category/JSON')
+def categoriesJSON():
+    categories = session.query(Category).all()
+    return jsonify(categories=[c.serialize for c in categories])
 
 
+@app.route('/category/<int:category_id>/items/JSON')
+def itemsJSON(category_id):
+    category = session.query(Category).filter_by(id=category_id).one()
+    items = session.query(Item).filter_by(category_id=category_id).all()
+    return jsonify(items=[i.serialize for i in items])
 
 
 @app.route('/disconnect')
