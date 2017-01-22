@@ -21,6 +21,9 @@ Base.metadata.bind = engine
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
+CLIENT_ID = json.loads(open('client_id.json', 'r').read())['web']['client_id']
+
+
 @app.route('/login')
 def showLogin():
     state = ''.join(random.choice(string.ascii_uppercase + string.digits)
@@ -30,6 +33,7 @@ def showLogin():
     return render_template('login.html', STATE=state)
 
 
+#Facebook login
 @app.route('/fbconnect', methods=['POST'])
 def fbconnect():
     if request.args.get('state') != login_session['state']:
@@ -96,6 +100,7 @@ def fbconnect():
     return output
 
 
+#Facebook logout
 @app.route('/fbdisconnect')
 def fbdisconnect():
     facebook_id = login_session['facebook_id']
@@ -106,7 +111,8 @@ def fbdisconnect():
     result = h.request(url, 'DELETE')[1]
     return "you have been logged out"
 
-    
+
+#Google+ login   
 @app.route('/gconnect', methods=['POST'])
 def gconnect():
     # Validate state token
@@ -119,7 +125,7 @@ def gconnect():
 
     try:
         # Upgrade the authorization code into a credentials object
-        oauth_flow = flow_from_clientsecrets('client_secrets.json', scope='')
+        oauth_flow = flow_from_clientsecrets('client_id.json', scope='')
         oauth_flow.redirect_uri = 'postmessage'
         credentials = oauth_flow.step2_exchange(code)
     except FlowExchangeError:
@@ -133,7 +139,7 @@ def gconnect():
     url = ('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=%s'
            % access_token)
     h = httplib2.Http()
-    result = json.loads(h.request(url, 'GET')[1])
+    result = json.loads(h.request(url, 'GET')[1].decode("utf8"))
     # If there was an error in the access token info, abort.
     if result.get('error') is not None:
         response = make_response(json.dumps(result.get('error')), 500)
@@ -198,6 +204,7 @@ def gconnect():
     print "done!"
     return output
 
+
 def createUser(login_session):
     newUser = User(name=login_session['username'], email=login_session[
                    'email'], picture=login_session['picture'])
@@ -216,6 +223,7 @@ def getUserID(email):
         return user.id
     except:
         return None
+
 
 #Google+ disconnect
 @app.route('/gdisconnect')
@@ -238,12 +246,14 @@ def gdisconnect():
         response.headers['Content-Type'] = 'application/json'
         return response
 
+
 #Show all categories
 @app.route('/')
 @app.route('/category/')
 def showCategories():
 	categories = session.query(Category).order_by(asc(Category.name))
 	return render_template('categories.html', categories=categories)
+
 
 #Show all items within a chosen category
 @app.route('/category/<int:category_id>/')
@@ -259,6 +269,7 @@ def showItem(category_id):
         return render_template('publicitems.html', item=item, category=category)
 
 
+#Create a new item within a given category
 @app.route('/category/<int:category_id>/items/new', methods=['GET', 'POST'])
 def newItem(category_id):
     if 'username' not in login_session:
@@ -274,6 +285,7 @@ def newItem(category_id):
         return render_template('newItem.html')
 
 
+#Edit an item
 @app.route('/category/<int:category_id>/items/<int:item_id>/edit', methods=['GET', 'POST'])
 def editItem(category_id, item_id):
     if 'username' not in login_session:
@@ -296,6 +308,7 @@ def editItem(category_id, item_id):
         return render_template('editItem.html', category_id=category_id, item_id=item_id, item=editedItem)
 
 
+#Delete an item
 @app.route('/category/<int:category_id>/items/<int:item_id>/delete', methods=['GET', 'POST'])
 def deleteItem(category_id, item_id):
     if 'username' not in login_session:
@@ -312,6 +325,7 @@ def deleteItem(category_id, item_id):
         return redirect(url_for('showItem', category_id=category_id))
     else:
         return render_template('deleteItem.html', item=delItem)
+
 
 #JSON APIs for viewing information
 @app.route('/category/JSON')
