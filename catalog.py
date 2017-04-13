@@ -50,13 +50,11 @@ def fbconnect():
     url = 'https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=%s&client_secret=%s&fb_exchange_token=%s' % (
         app_id, app_secret, access_token)
     h = httplib2.Http()
-    result = h.request(url, 'GET')[1]
+    result = http.request(url, 'GET')[1]
+    data = json.loads(result)
 
-    # Use token to get user info from API
-    userinfo_url = "https://graph.facebook.com/v2.4/me"
     # strip expire tag from access token
-    token = result.split("&")[0]
-
+    token = 'access_token=' + data['access_token']
 
     url = 'https://graph.facebook.com/v2.4/me?%s&fields=name,id,email' % token
     h = httplib2.Http()
